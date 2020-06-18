@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css" integrity="sha384-9aIt2nRpC12Uk9gS9baDl411NQApFmC26EwAOH8WgZl5MYYxFfc+NcPb1dKGj7Sk" crossorigin="anonymous">
+
+    <title>Water Level Controller</title>
+  </head>
+  <body>
+<figure>
+  <figcaption>Water Level Controller</figcaption>
+  <pre>
+    <code>
+#include&lt;SoftwareSerial.h&gt;
+#include&lt;LiquidCrystal.h&gt;
+LiquidCrystal lcd(11, 10, 9, 8, 7, 6) ; // RS,EN, D4,D5,D6,D7
+SoftwareSerial esp (2, 3);
+ 
+#define DEBUG true
+#define IP "184.106.153.149"// thingspeak.com ip
+String Api_key = "GET /update?key=3FR5O3D0JFJIHOPK"; 
+ 
+int error;
+const int water_sensor = A0;
+const int current_sensor1 = A1;
+const int current_sensor2 = A2;
+const int pump_1 = 12;
+const int pump_2 = 13;
+float current_1, current_2, level;
+float output;
+
+void pump_on()
+{
+digitalWrite(pump_1, LOW);
+digitalWrite(pump_2, HIGH);
+}
+void pump_off()
+{
+digitalWrite(pump_1, LOW);
+digitalWrite(pump_2, LOW);
+}
+
+
+void alert_send()
+{
+Serial.println("AT");
+  delay(1000);
+Serial.println("AT");
+  delay(1000);
+Serial.println("AT");
+  delay(1000);
+Serial.println("AT+CMGF=1");
+  delay(1000);
+
+ Serial.print("AT+CMGS=");
+  delay(250);
+Serial.write('"');
+delay(250);
+Serial.print("9847277984");
+  delay(250);
+Serial.write('"');
+  delay(250);
+Serial.write(0X0D);
+  delay(250);
+Serial.print(" Water level risen beyond allowed limit");
+  delay(250);
+Serial.write(0X1A);
+  delay(1000);
+lcd.clear();
+lcd.setCursor(0,1);
+lcd.print("alert send...");
+
+}
+void check_level()
+{
+lcd.clear();
+lcd.setCursor(0, 1);
+lcd.print("LEVEL:");
+  if (level > 200&amp;&amp; level &lt; 900)
+  {
+lcd.setCursor(7, 1);
+lcd.print("MEDIUM");
+lcd.setCursor(0, 0);
+lcd.print("PUMP: OFF");
+pump_off();
+  }
+  else if (level &lt;200)
+  {
+lcd.setCursor(7, 1);
+lcd.print("LOW");
+lcd.setCursor(0, 0);
+lcd.print("PUMP: ON");
+pump_on();
+    delay(1000);
+pump_off();
+  }
+ else if (level > 900)
+  {
+lcd.setCursor(7, 1) ;
+
+
+lcd.print("LIMIT");
+lcd.setCursor(0, 0);
+lcd.print("PUMP: OFF");
+pump_off();
+alert_send();
+  }
+}
+void setup()
+{
+Serial.begin(9600);
+esp.begin(115200);
+lcd.begin(16, 2);
+pinMode(pump_1, OUTPUT);
+pinMode(pump_2, OUTPUT);
+pump_off();
+  delay(250);
+
+send_command("AT+RST\r\n", 2000, DEBUG); 
+send_command("AT+CWMODE=1\r\n", 1000, DEBUG); 
+send_command("AT+CWJAP=\"JioFi3_10CC2F\",\"47pfh0mhrv\"\r\n", 2000, DEBUG);
+//  while (!esp.find("OK"))
+//  { //wait for connection
+//    lcd.clear();
+//    lcd.setCursor(1, 0);
+//    lcd.print(" WIFI CONNECTED");
+//  }
+  delay(1000);
+lcd.clear();
+lcd.setCursor(2, 0);
+lcd.print("AUTOMATED DAM");
+lcd.setCursor(3, 1);
+lcd.print("MONITORING");
+  delay(2000);
+send_command("AT+RST\r\n", 2000, DEBUG); 
+send_command("AT+CWMODE=1\r\n", 1000, DEBUG); 
+send_command("AT+CWJAP=\"JioFi3_10CC2F\",\"47pfh0mhrv\"\r\n", 2000, DEBUG);
+//  while (!esp.find("OK"))
+//  { //wait for connection
+//    lcd.clear();
+//    lcd.setCursor(1, 0);
+//    lcd.print(" WIFI CONNECTED");
+//  }
+  delay(1000);
+lcd.clear();
+lcd.setCursor(2, 0);
+lcd.print("AUTOMATED DAM");
+lcd.setCursor(3, 1);
+lcd.print("MONITORING");
+  delay(2000);
+lcd.clear();
+lcd.setCursor(0, 1);
+lcd.print("LEVEL:");
+lcd.setCursor(0, 0);
+lcd.print(" Sensing data.... ");
+  delay(1000);
+}
+void loop()
+{
+  level = analogRead(water_sensor);
+  delay(250);
+  current_1 = analogRead(current_sensor1);
+  delay(250);
+  current_2 = analogRead(current_sensor2);
+  delay(250);
+check_level();
+  delay(500);
+
+//start: //label
+//  error = 0;
+updatedata();
+//  if (error == 1) {
+//    goto start; //go to label "start"
+//  }
+
+//  delay(1000);
+}
+void updatedata() {
+  String command = "AT+CIPSTART=\"TCP\",\""; 
+  command += IP;
+  command += "\",80";
+  //Serial.println(command);
+esp.println(command);
+//  delay(2000);
+//  if (esp.find("Error")) {
+//    return;
+//  }
+  command = Api_key ;
+  command += "&amp;field1=";
+  command += current_1;
+  command += "&amp;field2=";
+  command += current_2;
+  command += "&amp;field3=";
+  command += level;
+  command += "\r\n";
+  //Serial.print("AT+CIPSEND=");
+esp.print("AT+CIPSEND=");
+  //Serial.println(command.length());
+esp.println(command.length());
+//  if (esp.find(">")) {
+//    //Serial.print(command);
+//    lcd.clear();
+
+//
+//    //Serial.println("AT+CIPCLOSE");
+//    esp.println("AT+CIPCLOSE");
+//    //Resend...
+//    error = 1;
+//  }
+}
+    </code>
+  </pre>
+</figure>
+
+
+
+
+
+
+
+
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js" integrity="sha384-OgVRvuATP1z7JjHLkuOU7Xw704+h835Lr+6QL9UvYjZE3Ipu6Tp75j7Bh/kR0JKI" crossorigin="anonymous"></script>
+  </body>
+</html>
