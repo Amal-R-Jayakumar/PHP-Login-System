@@ -1,8 +1,8 @@
 <?php
 
 
-define('EMAIL','smartusrs.in@gmail.com');
-define('PASSWORD','5$dollars');
+define('EMAIL','email@gmail.com');
+define('PASSWORD','the password');
 
 define('DB_HOST', 'localhost');
 define('DB_USER', 'root');
